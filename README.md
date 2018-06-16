@@ -1,14 +1,15 @@
 Automagically update VS Code so I don't have to worry about it anymore.
 
 Don't even need the script file on the computer. Probably just want to run as the `System` user via a scheduled task. You have at least two options to accomplish this:
-1. Base64 encode it and run it with the `powershell.exe -EncodedCommand` parameter. **(Personal Preference)**
-1. Run it straight from GitHub, I'm sure GitHub won't mind. 😏 
+
+1. [Base64 encode](#base64-encoded) it and run it with the `powershell.exe -EncodedCommand` parameter. **(Personal Preference)**
+1. [Download and Execute](#download-and-execute) it straight from GitHub, I'm sure GitHub won't mind. 😏 
 
 Yes, the while loop could potentially run forever. Use the scheduled task to create a timeout.
 
 Both options are below ... 
 
-# Base64
+# Base64 Encoded
 
 ```powershell
 $urlGist = 'https://raw.githubusercontent.com/UNT-CAS/Update-VSCode/master/Update-VSCode.ps1'
