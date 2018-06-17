@@ -19,6 +19,11 @@ You can see what I mean with these examples: `[bool]'true'`, `[bool]'false'`, `[
 This is the full path (directory and name) of the log file.
 Additionally, the `setup.exe` will use this to generate its log file's full path by appending `-Setup` before the extension; such as: `"${env:SystemRoot}\Logs\Update-VSCode.ps1-Setup.log"`.
 
+Only the latest iteration of the log file is kept.
+In other words: the logging will not append to the previous run of this script.
+This keeps the log file from getting bloated.
+I tend to believe that only the latest iteration is ever really needed anyway.
+
 ## SetupMergeTasks
 
 - Type: `[string]`
