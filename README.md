@@ -1,17 +1,64 @@
-[VS Code](https://vscode.microsoft.com) [doesn't do completely silent update](https://github.com/Microsoft/vscode/issues/9539#issuecomment-397772482).
-This works around that shortcoming and allows the user to just use VS Code.
+[VS Code](https://vscode.microsoft.com) [doesn't do completely silent updates](https://github.com/Microsoft/vscode/issues/9539#issuecomment-397772482).
+This works around that shortcoming and allows the user to just *use* VS Code.
+
+# Parameters
+
+Parameters let you customize some installer options.
+All parameters can also be set with an environment variable as such: `UpdateVSCode${Parameter}`.
+For example, the `SetupSilent` variable as an environment variable would be: `UpdateVSCodeSetupSilent`.
+
+Keep in mind that environment variables are always strings.
+So, setting a switch parameter to `'$false'` via an environment variable would still be `$true`.
+You can see what I mean with these examples: `[bool]'true'`, `[bool]'false'`, `[bool]'$true'`, `[bool]'$false'`, `[bool]'0'`, and `[bool]''`.
+
+## LogPath
+
+- Type: `[IO.FileInfo]`
+- Default: `"${env:SystemRoot}\Logs\Update-VSCode.ps1.log"`
+
+This is the full path (directory and name) of the log file.
+Additionally, the `setup.exe` will use this to generate its log file's full path by appending `-Setup` before the extension; such as: `"${env:SystemRoot}\Logs\Update-VSCode.ps1-Setup.log"`.
+
+## SetupMergeTasks
+
+- Type: `[string]`
+- Default: `'addcontextmenufiles,addcontextmenufolders,addtopath,associatewithfiles,!desktopicon,!quicklaunchicon,!runcode'`
+
+This setting allows you to customize some of the installer options/tasks.
+The tasks listed as *default*, above, are [the current tasks in the `code.iss` file](https://github.com/Microsoft/vscode/blob/12ab70d329a13dd5b18d892cd40edd7138259bc3/build/win32/code.iss#L61-L68), [thanks StackOverflow](https://stackoverflow.com/a/42582896/615422).
+Think of each task as a checkbox.
+Putting a bang (`!`) in front of the taskname is like unchecking the box.
+
+These tasks are subject to change.
+Check the latest version of that `code.iss` file for details; it will definitely be more updated than this README.
+
+## SetupSilent
+
+- Type: `[switch]`
+
+If set, the `setup.exe` will be passed the `/SILENT` parameter, instead of using this script's default `/VERYSILENT` parameter.
+
+If you specify this switch and the [SetupSilentNoCancel](#setupsilent) switch, the [SetupSilentNoCancel](#setupsilent) switch will take precedence.
+
+## SetupSilentNoCancel
+
+- Type: `[switch]`
+
+If set, the `setup.exe` will be passed the `/SILENT` and `/NOCANCEL` parameters, instead of using this script's default `/VERYSILENT` parameter.
+
+If you specify this switch and the [SetupSilent](#setupsilent) switch, this switch will take precedence.
 
 # Examples
 
-You don't need the script file on the computer.
-Probably just want to run as the `System` user via a scheduled task.
+The script file is not needed on the computer.
+I just created a scheduled task to run this as the `System` user.
 You have at least two options to accomplish this:
 
 1. [Base64 encode](#base64-encoded) it and run it with the `powershell.exe -EncodedCommand` parameter. **(Personal Preference)**
-1. [Download and Execute](#download-and-execute) it straight from GitHub, I'm sure GitHub won't mind. 😏 
+1. [Download and Execute](#download-and-execute) it straight from GitHub, I'm sure GitHub won't mind. 😏
 
-Yes, the while loop could potentially run forever.
-Use the scheduled task to create a timeout.
+There is while loop in this script that could potentially run forever.
+Use the scheduled task settings to create a timeout.
 
 Both options are below ... 
 
@@ -30,11 +77,11 @@ $encodedCommand = [Convert]::ToBase64String($bytes)
 Then use the contents of `$encodedCommand` like this:
 
 ```bash
-powershell.exe -W H -Ex B -NoP -NonI -EncodedCommand "IwBSAGUAcQB1AGkAcgBlAHMAIAAtAFIAdQBuAEEAcwBBAGQAbQBpAG4AaQBzAHQAcgBhAHQAbwByAAoACgAkAGEAcABwAGwAaQBjAGEAdABpAG8AbgBOAGEAbQBlACAAPQAgACcATQBpAGMAcgBvAHMAbwBmAHQAIABWAGkAcwB1AGEAbAAgAFMAdAB1AGQAaQBvACAAQwBvAGQAZQAnAAoACgAkAHUAcgBsAFQAYQBnAHMAIAA9ACAAJwBoAHQAdABwAHMAOgAvAC8AYQBwAGkALgBnAGkAdABoAHUAYgAuAGMAbwBtAC8AcgBlAHAAbwBzAC8ATQBpAGMAcgBvAHMAbwBmAHQALwB2AHMAYwBvAGQAZQAvAHQAYQBnAHMAJwAKACQAdQByAGwATABhAHQAZQBzAHQARABvAHcAbgBsAG8AYQBkACAAPQAgACcAaAB0AHQAcABzADoALwAvAGEAegA3ADYANAAyADkANQAuAHYAbwAuAG0AcwBlAGMAbgBkAC4AbgBlAHQALwBzAHQAYQBiAGwAZQAvAHsAMAB9AC8AVgBTAEMAbwBkAGUAUwBlAHQAdQBwAC0AeAA2ADQALQB7ADEAfQAuAGUAeABlACcACgAKAFsATgBlAHQALgBTAGUAcgB2AGkAYwBlAFAAbwBpAG4AdABNAGEAbgBhAGcAZQByAF0AOgA6AFMAZQBjAHUAcgBpAHQAeQBQAHIAbwB0AG8AYwBvAGwAIAA9ACAAWwBOAGUAdAAuAFMAZQBjAHUAcgBpAHQAeQBQAHIAbwB0AG8AYwBvAGwAVAB5AHAAZQBdADoAOgBUAGwAcwAxADIACgAkAHQAYQBnAHMAIAA9ACAAKABJAG4AdgBvAGsAZQAtAFcAZQBiAFIAZQBxAHUAZQBzAHQAIAAtAFUAcgBpACAAJAB1AHIAbABUAGEAZwBzACAALQBVAHMAZQBCAGEAcwBpAGMAUABhAHIAcwBpAG4AZwAgAC0ARQByAHIAbwByAEEAYwB0AGkAbwBuACAAUwB0AG8AcAApAC4AQwBvAG4AdABlAG4AdAAgAHwAIABDAG8AbgB2AGUAcgB0AEYAcgBvAG0ALQBKAHMAbwBuAAoAJAB2AGUAcgBzAGkAbwBuAHMAIAA9ACAAJAB0AGEAZwBzACAAfAAgAFcAaABlAHIAZQAtAE8AYgBqAGUAYwB0ACAAewAgACQAXwAuAG4AYQBtAGUAIAAtAGEAcwAgAFsAdgBlAHIAcwBpAG8AbgBdACAAfQAKAFsAdgBlAHIAcwBpAG8AbgBdACAAJAB2AGUAcgBzAGkAbwBuAEwAYQB0AGUAcwB0ACAAPQAgACgAJAB2AGUAcgBzAGkAbwBuAHMAIAB8ACAAUwBvAHIAdAAtAE8AYgBqAGUAYwB0ACAALQBQAHIAbwBwAGUAcgB0AHkAIAAnAG4AYQBtAGUAJwAgAC0ARABlAHMAYwBlAG4AZABpAG4AZwApAFsAMABdAC4AbgBhAG0AZQAKACQAcwBoAGEATABhAHQAZQBzAHQAIAA9ACAAKAAkAHYAZQByAHMAaQBvAG4AcwAgAHwAIABTAG8AcgB0AC0ATwBiAGoAZQBjAHQAIAAtAFAAcgBvAHAAZQByAHQAeQAgACcAbgBhAG0AZQAnACAALQBEAGUAcwBjAGUAbgBkAGkAbgBnACkAWwAwAF0ALgBjAG8AbQBtAGkAdAAuAHMAaABhAAoAWwB2AGUAcgBzAGkAbwBuAF0AIAAkAHYAZQByAHMAaQBvAG4ASQBuAHMAdABhAGwAbABlAGQAIAA9ACAAJABuAHUAbABsAAoACgAkAHUAbgBpAG4AcwB0AGEAbABsAEsAZQB5AHMAIAA9ACAAQAAoAAoAIAAgACAAIAAnAFIAZQBnAGkAcwB0AHIAeQA6ADoASABLAEUAWQBfAEwATwBDAEEATABfAE0AQQBDAEgASQBOAEUAXABTAE8ARgBUAFcAQQBSAEUAXABNAGkAYwByAG8AcwBvAGYAdABcAFcAaQBuAGQAbwB3AHMAXABDAHUAcgByAGUAbgB0AFYAZQByAHMAaQBvAG4AXABVAG4AaQBuAHMAdABhAGwAbABcACcACgAgACAAIAAgACcAUgBlAGcAaQBzAHQAcgB5ADoAOgBIAEsARQBZAF8ATABPAEMAQQBMAF8ATQBBAEMASABJAE4ARQBcAFMATwBGAFQAVwBBAFIARQBcAFcATwBXADYANAAzADIATgBvAGQAZQBcAE0AaQBjAHIAbwBzAG8AZgB0AFwAVwBpAG4AZABvAHcAcwBcAEMAdQByAHIAZQBuAHQAVgBlAHIAcwBpAG8AbgBcAFUAbgBpAG4AcwB0AGEAbABsAFwAJwAKACkACgAKAGYAbwByAGUAYQBjAGgAIAAoACQAdQBuAGkAbgBzAHQAYQBsAGwASwBlAHkAIABpAG4AIAAkAHUAbgBpAG4AcwB0AGEAbABsAEsAZQB5AHMAKQAgAHsACgAgACAAIAAgAGkAZgAgACgAVABlAHMAdAAtAFAAYQB0AGgAIAAkAHUAbgBpAG4AcwB0AGEAbABsAEsAZQB5ACkAIAB7AAoAIAAgACAAIAAgACAAIAAgAGYAbwByAGUAYQBjAGgAIAAoACQAaQBuAHMAdABhAGwAbABlAGQAUwBvAGYAdAB3AGEAcgBlACAAaQBuACAAKABHAGUAdAAtAEMAaABpAGwAZABJAHQAZQBtACAAJAB1AG4AaQBuAHMAdABhAGwAbABLAGUAeQApACkAIAB7AAoAIAAgACAAIAAgACAAIAAgACAAIAAgACAAJABpAG4AcwB0AGEAbABsAGUAZABTAG8AZgB0AHcAYQByAGUAUAByAG8AcABlAHIAdABpAGUAcwAgAD0AIABHAGUAdAAtAEkAdABlAG0AUAByAG8AcABlAHIAdAB5ACAAKAAnAFIAZQBnAGkAcwB0AHIAeQA6ADoAewAwAH0AJwAgAC0AZgAgACQAaQBuAHMAdABhAGwAbABlAGQAUwBvAGYAdAB3AGEAcgBlAC4ATgBhAG0AZQApAAoACgAgACAAIAAgACAAIAAgACAAIAAgACAAIABpAGYAIAAoACQAaQBuAHMAdABhAGwAbABlAGQAUwBvAGYAdAB3AGEAcgBlAFAAcgBvAHAAZQByAHQAaQBlAHMALgBEAGkAcwBwAGwAYQB5AE4AYQBtAGUAIAAtAGUAcQAgACQAYQBwAHAAbABpAGMAYQB0AGkAbwBuAE4AYQBtAGUAKQAgAHsACgAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgAFcAcgBpAHQAZQAtAFYAZQByAGIAbwBzAGUAIAAoACcAVgBTACAAQwBvAGQAZQAgAGYAbwB1AG4AZAA6ACAAewAwAH0AJwAgAC0AZgAgACgAJABpAG4AcwB0AGEAbABsAGUAZABTAG8AZgB0AHcAYQByAGUAUAByAG8AcABlAHIAdABpAGUAcwAgAHwAIABPAHUAdAAtAFMAdAByAGkAbgBnACkAKQAKACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAWwB2AGUAcgBzAGkAbwBuAF0AIAAkAHYAZQByAHMAaQBvAG4ASQBuAHMAdABhAGwAbABlAGQAIAA9ACAAJABpAG4AcwB0AGEAbABsAGUAZABTAG8AZgB0AHcAYQByAGUAUAByAG8AcABlAHIAdABpAGUAcwAuAEQAaQBzAHAAbABhAHkAVgBlAHIAcwBpAG8AbgAKACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAACgAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgACAAIAAgAFcAcgBpAHQAZQAtAFYAZQByAGIAbwBzAGUAIAAoACcAVgBTACAAQwBvAGQAZQAgAGYAbwB1AG4AZAA6ACAAewAwAH0AJwAgAC0AZgAgACQAdgBlAHIAcwBpAG8AbgBJAG4AcwB0AGEAbABsAGUAZAApAAoAIAAgACAAIAAgACAAIAAgACAAIAAgACAAfQAKACAAIAAgACAAIAAgACAAIAB9AAoAIAAgACAAIAB9AAoAfQAKAAoAaQBmACAAKAAkAHYAZQByAHMAaQBvAG4ASQBuAHMAdABhAGwAbABlAGQAIAAtAG4AZQAgACQAdgBlAHIAcwBpAG8AbgBMAGEAdABlAHMAdAApACAAewAKACAAIAAgACAAJAB2AHMAYwBvAGQAZQBTAGUAdAB1AHAAIAA9ACAAJwB7ADAAfQBcAFYAUwBDAG8AZABlAFMAZQB0AHUAcAAuAGUAeABlACcAIAAtAGYAIAAkAGUAbgB2ADoAVABlAG0AcAAKACAAIAAgACAASQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0ACAALQBVAHIAaQAgACgAJAB1AHIAbABMAGEAdABlAHMAdABEAG8AdwBuAGwAbwBhAGQAIAAtAGYAIAAkAHMAaABhAEwAYQB0AGUAcwB0ACwAIAAkAHYAZQByAHMAaQBvAG4ATABhAHQAZQBzAHQAKQAgAC0ATwB1AHQARgBpAGwAZQAgACQAdgBzAGMAbwBkAGUAUwBlAHQAdQBwACAALQBVAHMAZQBCAGEAcwBpAGMAUABhAHIAcwBpAG4AZwAKAAoAIAAgACAAIAB3AGgAaQBsAGUAIAAoAEcAZQB0AC0AUAByAG8AYwBlAHMAcwAgACcAQwBvAGQAZQAnACAALQBJAG4AYwBsAHUAZABlAFUAcwBlAHIATgBhAG0AZQAgAC0ARQByAHIAbwByAEEAYwB0AGkAbwBuACAAUwBpAGwAZQBuAHQAbAB5AEMAbwBuAHQAaQBuAHUAZQApACAAewAKACAAIAAgACAAIAAgACAAIABXAHIAaQB0AGUALQBWAGUAcgBiAG8AcwBlACAAKAAnAFYAUwAgAEMAbwBkAGUAIABpAHMAIABjAHUAcgByAGUAbgB0AGwAeQAgAGkAbgAgAHUAcwBlACAAYgB5ACAAewAwAH0AOwAgAHcAaQBsAGwAIABjAGgAZQBjAGsAIABhAGcAYQBpAG4AIABpAG4AIABhACAAbQBpAG4AdQB0AGUAIAAuAC4ALgAnACAALQBmACAAKAAoACgARwBlAHQALQBQAHIAbwBjAGUAcwBzACAAJwBDAG8AZABlACcAIAAtAEkAbgBjAGwAdQBkAGUAVQBzAGUAcgBOAGEAbQBlACkALgBVAHMAZQByAE4AYQBtAGUAIAB8ACAAUwBvAHIAdAAtAE8AYgBqAGUAYwB0ACAALQBVAG4AaQBxAHUAZQApACAALQBqAG8AaQBuACAAJwAsACAAJwApACkACgAgACAAIAAgACAAIAAgACAAUwB0AGEAcgB0AC0AUwBsAGUAZQBwACAALQBTAGUAYwBvAG4AZABzACAANgAwAAoAIAAgACAAIAB9AAoACgAgACAAIAAgAFcAcgBpAHQAZQAtAFYAZQByAGIAbwBzAGUAIAAnAEkAbgBzAHQAYQBsAGwAaQBuAGcAIABsAGEAdABlAHMAdAAgAHYAZQByAHMAaQBvAG4ALgAuAC4AJwAKACAAIAAgACAAUwB0AGEAcgB0AC0AUAByAG8AYwBlAHMAcwAgAC0ARgBpAGwAZQBQAGEAdABoACAAJAB2AHMAYwBvAGQAZQBTAGUAdAB1AHAAIAAtAEEAcgBnAHUAbQBlAG4AdABMAGkAcwB0ACAAIgAvAHMAaQBsAGUAbgB0ACAALwBtAGUAcgBnAGUAdABhAHMAawBzAD0AIQByAHUAbgBjAG8AZABlACAALwBuAG8AcgBlAHMAdABhAHIAdAAiACAALQBXAGEAaQB0AAoAfQAgAGUAbABzAGUAIAB7AAoAIAAgACAAIABXAHIAaQB0AGUALQBWAGUAcgBiAG8AcwBlACAAJwBMAGEAdABlAHMAdAAgAHYAZQByAHMAaQBvAG4AIABhAGwAcgBlAGEAZAB5ACAAaQBuAHMAdABhAGwAbABlAGQALgAnAAoAfQA="
+powershell.exe -W H -Ex B -NoP -NonI -EncodedCommand "WwBEAGkAYQBnAG4AbwBzAHQAaQBjAHMALgBQAHIAbwBjAGUAcwBzAF0AOgA6AFMAdABhAHIAdAAoACcAaAB0AHQAcABzADoALwAvAHUAbgB0AGMAYQBzAC4AcABhAGcAZQAuAGwAaQBuAGsALwBMADgAdABjACcAKQA="
 ```
 
-*Note: you might want to re-base64 it to be sure I didn't make any changes since posting this.*
-*I likely won't come back and update this.*
+*Note: you might want to re-base64 it yourself.*
+*It is not the base64 you are looking for.*
 
 ## Download and Execute
 
@@ -44,5 +91,5 @@ powershell.exe -W H -Ex B -NoP -NonI -EncodedCommand "IwBSAGUAcQB1AGkAcgBlAHMAIA
 powershell.exe -W H -Ex B -NoP -NonI "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest 'https://raw.githubusercontent.com/UNT-CAS/Update-VSCode/e00b0c8c25a66d07361148a6573c47810be8c63a/Update-VSCode.ps1' -UseBasicParsing | Invoke-Expression"
 ```
 
-*Note: you might want to confirm that commit id is the id you want.*
+*Note: you might want to confirm that the commit id in that URL is the id you want.*
 *I likely won't come back and update the commit id every time I make a change to the code.*
