@@ -31,16 +31,16 @@ Param(
     $PopupText = $(if ($env:UpdateVSCodePopupText) { $env:UpdateVSCodePopupText } else { 'VS Code is currently being installed or upgraded. It will not be accessible for the duration of the install. This won''t take long ... try again in a minute.' }),
 
     [Parameter()]
-    [string]
-    $PopupDuration = $(if ($env:UpdateVSCodePopupDuration) { $env:UpdateVSCodePopupDuration } else { '30' }),
+    [int]
+    $PopupDuration = $(if ($env:UpdateVSCodePopupDuration) { $env:UpdateVSCodePopupDuration } else { 30 }),
+
+    [Parameter()]
+    [int32]
+    $PopupType = $(if ($env:UpdateVSCodePopupType) { $env:UpdateVSCodePopupType } else { 0x30 }),
 
     [Parameter()]
     [string]
-    $PopupType = $(if ($env:UpdateVSCodePopupType) { $env:UpdateVSCodePopupType } else { '0x30' }),
-
-    [Parameter()]
-    [string]
-    $SetupMergeTasks = $(if ($env:UpdateVSCodeSetupMergeTasks) { $env:UpdateVSCodeSetupMergeTasks } else { '!runcode,addcontextmenufiles,addcontextmenufolders,associatewithfiles,addtopath' }),
+    $SetupMergeTasks = $(if ($env:UpdateVSCodeSetupMergeTasks) { $env:UpdateVSCodeSetupMergeTasks } else { 'addcontextmenufiles,addcontextmenufolders,addtopath,associatewithfiles,!desktopicon,!quicklaunchicon,!runcode' }),
 
     [switch]
     $SetupSilent,
