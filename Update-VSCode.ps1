@@ -15,8 +15,28 @@
 [CmdletBinding()]
 Param(
     [Parameter()]
+    [switch]
+    $DoNotBlock,
+
+    [Parameter()]
     [IO.FileInfo]
     $LogPath = $(if ($env:UpdateVSCodeLogPath) { $env:UpdateVSCodeLogPath } else { "${env:SystemRoot}\Logs\Update-VSCode.ps1.log" }),
+
+    [Parameter()]
+    [string]
+    $PopupTitle = $(if ($env:UpdateVSCodePopupTitle) { $env:UpdateVSCodePopupTitle } else { 'VS Code: Installing/Upgrading' }),
+
+    [Parameter()]
+    [string]
+    $PopupText = $(if ($env:UpdateVSCodePopupText) { $env:UpdateVSCodePopupText } else { 'VS Code is currently being installed or upgraded. It will not be accessible for the duration of the install. This won''t take long ... try again in a minute.' }),
+
+    [Parameter()]
+    [string]
+    $PopupDuration = $(if ($env:UpdateVSCodePopupDuration) { $env:UpdateVSCodePopupDuration } else { '30' }),
+
+    [Parameter()]
+    [string]
+    $PopupType = $(if ($env:UpdateVSCodePopupType) { $env:UpdateVSCodePopupType } else { '0x30' }),
 
     [Parameter()]
     [string]
@@ -49,12 +69,16 @@ if (
 }
 
 $applicationName = 'Microsoft Visual Studio Code'
+$processNames = @('Code')
+$scriptGuid = 'a229ded3-1ecb-4a0a-b627-9c66b7692d3e'
 $urlTags = 'https://api.github.com/repos/Microsoft/vscode/tags'
 $urlDownload = 'https://az764295.vo.msecnd.net/stable/{0}/VSCodeSetup-x64-{1}.exe'
 $vscodeSetup = "${env:Temp}\VSCodeSetup.exe"
 
 Write-Host "# General Settings"
 Write-Host "## Application Name: ${applicationName}"
+Write-Host "## Process Names: ${processNames}"
+Write-Host "## Script GUID: ${scriptGuid}"
 Write-Host "## URL Tags: ${urlTags}"
 Write-Host "## URL Download: ${urlDownload}"
 Write-Host "## VS Code Setup *Download To* Location: ${vscodeSetup}"
@@ -124,6 +148,52 @@ if ($versionInstalled -ne $versionLatest) {
     }
     Write-Host "## VS Code not in use"
 
+    [System.Collections.ArrayList] $vbsFilePaths = @()
+    if ((-not $DoNotBlock.IsPresent) -or (-not $env:UpdateVSCodeDoNotBlock)) {
+        Write-Host '## Will block VS Code from executing during the installation ...'
+
+        $debuggerCommand = 'wscript.exe //E:vbscript {0}'
+        $blockedAppVbs = @'
+Dim wshShell: Set wshShell = WScript.CreateObject("WScript.Shell")
+WshShell.Popup "{0}", {1}, "{2}", {3}
+'@ -f @(
+            $PopupText,
+            ($PopupDuration -as [int]),
+            $PopupTitle,
+            ($PopupType -as [int32])
+        )
+
+        foreach ($processName in $processNames) {
+            Write-Host ('### Blocking: {0}.exe' -f $processName)
+
+            $vbsFilePath = New-TemporaryFile
+            $vbsFilePaths.Add($vbsFilePath) | Out-Null
+            
+            ($blockedAppVbs -f $processName) | Out-File -Encoding ascii -LiteralPath $vbsFilePath
+
+            [string] $processKey = Join-Path $ifeoKey "${processName}.exe" -ErrorAction Stop
+            try {
+                # The $processKey key already exists
+                [string] $processKey = Resolve-Path $processKey -ErrorAction Stop
+            } catch [System.Management.Automation.ItemNotFoundException] {
+                # The $processKey key does not exist
+                New-Item -Type Directory $processKey -ErrorAction Stop | Out-Null
+                [string] $processKey = Resolve-Path $processKey -ErrorAction Stop
+                New-ItemProperty -Path $processKey -Name ('{0}MadeMe' -f $scriptGuid) -Type 'DWORD' -Value $true | Out-Null
+            }
+
+            $debuggerExisting = (Get-ItemProperty $processKey).Debugger
+            if (($debuggerExisting | Measure-Object).Count) {
+                # The 'Debugger' value already exists
+                New-ItemProperty -Path $processKey -Name ('Debugger_{0}RenamedMe' -f $scriptGuid) -Value $debuggerExisting -ErrorAction 'SilentlyContinue' | Out-Null
+                Remove-ItemProperty -Path $processKey -Name 'Debugger' | Out-Null
+            }
+
+            New-ItemProperty -Path $processKey -Name 'Debugger' -Value ($debuggerCommand -f $vbsFilePath) | Out-Null
+            New-ItemProperty -Path $processKey -Name ('{0}MadeDebugger' -f $scriptGuid) -Type 'DWORD' -Value $true | Out-Null
+        }
+    }
+
     Write-Host "## Running VSCode Setup"
     if ($SetupSilentNoCancel.IsPresent -or $env:UpdateVSCodeSetupSilentNoCancel) {
         $ArgumentList = @('/SILENT', '/NOCANCEL')
@@ -147,6 +217,44 @@ if ($versionInstalled -ne $versionLatest) {
     
     $result = Start-Process @startProcess
     Write-Host "Exit Code: $($result.ExitCode)"
+
+    Write-Host '## Time to unblock VS Code from executing ...'
+    foreach ($processName in $processNames) {
+        Write-Host ('### Unblocking: {0}.exe' -f $processName)
+
+        [string] $processKey = Join-Path $ifeoKey "${processName}.exe" -ErrorAction Stop
+        Write-Debug "### Process Key: ${processKey}"
+        
+        try {
+            $properties = Get-ItemProperty -Path $processKey -ErrorAction Stop
+            Write-Host "### Process Key Properties: $($properties | Out-String)"
+        } catch [System.Management.Automation.ItemNotFoundException] {
+            Write-Error "[ItemNotFoundException] Unexpected Error; should never see this: $_"
+            continue
+        }
+
+        Write-Debug "### MadeMe: $($properties["${scriptGuid}MadeMe"])"
+
+        if ($properties.$("${scriptGuid}MadeMe")) {
+            Write-Host "### Deleting Key: ${processKey}"
+            Remove-Item $processKey -Recurse -Force -ErrorAction Stop | Out-Null
+        } elseif ($properties.$("${scriptGuid}MadeDebugger")) {
+            Write-Host "### Deleting Key Value: ${processKey} : Debugger"
+            Remove-ItemProperty -Path $processKey -Name 'Debugger' -ErrorAction Stop | Out-Null
+
+            Write-Host "### Deleting Key Value: ${processKey} : ${scriptGuid}MadeDebugger"
+            Remove-ItemProperty -Path $processKey -Name "${scriptGuid}MadeDebugger" -ErrorAction Stop | Out-Null
+        } elseif ($properties.$("Debugger_${scriptGuid}RenamedMe")) {
+            Write-Host "### Deleting Key Value: ${processKey} : Debugger"
+            Remove-ItemProperty -Path $processKey -Name 'Debugger' -ErrorAction Stop | Out-Null
+
+            Write-Host "### Renaming Key: ${processKey} : Debugger_${scriptGuid}RenamedMe > Debugger"
+            New-ItemProperty -Path $processKey -Name 'Debugger' -Value $properties.$("Debugger_${scriptGuid}RenamedMe") -ErrorAction Stop | Out-Null
+            Remove-ItemProperty -Path $processKey -Name "Debugger_${scriptGuid}RenamedMe" -ErrorAction Stop | Out-Null
+        }
+    }
+
+    $vbsFilePaths | Remove-Item -Force
 } else {
     Write-Host "## Latest version already installed."
 }

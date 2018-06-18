@@ -1,6 +1,15 @@
 [VS Code](https://vscode.microsoft.com) [doesn't do completely silent updates](https://github.com/Microsoft/vscode/issues/9539#issuecomment-397772482).
 This works around that shortcoming and allows the user to just *use* VS Code.
 
+# Description
+
+This is a simple implementation of a more complex installer/updater process that I manage for work.
+I expect this script to be implemented as a scheduled task; either manually or via GPO.
+
+## Quick Start
+
+See the [Base64 Example, below](#base64-encoded).
+
 # Parameters
 
 Parameters let you customize some installer options.
@@ -10,6 +19,14 @@ For example, the `SetupSilent` variable as an environment variable would be: `Up
 Keep in mind that environment variables are always strings.
 So, setting a switch parameter to `'$false'` via an environment variable would still be `$true`.
 You can see what I mean with these examples: `[bool]'true'`, `[bool]'false'`, `[bool]'$true'`, `[bool]'$false'`, `[bool]'0'`, and `[bool]''`.
+
+## DoNotBlock
+
+- Type: `[switch]`
+
+Set this if you don't want to have VS Code blocked from executing during the installation/upgrade of VS Code.
+I'm not sure what the implications of this are, but I do know that VS Code's `setup.exe` checks for VS Code to be running and doesn't let the installer proceed if it is.
+I also realize the VS Code can install in the background if you initiate the install from withing VS Code.
 
 ## LogPath
 
@@ -23,6 +40,38 @@ Only the latest iteration of the log file is kept.
 In other words: the logging will not append to the previous run of this script.
 This keeps the log file from getting bloated.
 I tend to believe that only the latest iteration is ever really needed anyway.
+
+## PopupTitle
+
+- Type: `[string]`
+- Default: `'VS Code: Installing/Upgrading'`
+
+[When blocking VS Code from launching during an install/upgrade](#donotblock), there will be a message box that pops up if someone attempts to launch VS Code.
+This sets the title of that message box.
+
+## PopupText
+
+- Type: `[string]`
+- Default: `'VS Code is currently being installed or upgraded. It will not be accessible for the duration of the install. This won''t take long ... try again in a minute.'`
+
+[When blocking VS Code from launching during an install/upgrade](#donotblock), there will be a message box that pops up if someone attempts to launch VS Code.
+This sets the body text of that message box.
+
+## PopupDuration
+
+- Type: `[int]`
+- Default: `30`
+
+[When blocking VS Code from launching during an install/upgrade](#donotblock), there will be a message box that pops up if someone attempts to launch VS Code.
+This sets the auto-close timeout in seconds of that message box.
+
+## PopupType
+
+- Type: `[int32]`
+- Default: `0x30`
+
+[When blocking VS Code from launching during an install/upgrade](#donotblock), there will be a message box that pops up if someone attempts to launch VS Code.
+This sets the alert icon of that message box.
 
 ## SetupMergeTasks
 
